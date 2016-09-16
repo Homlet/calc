@@ -21,7 +21,9 @@ fun take n s =
 
 (* Lexer data types. *)
 datatype token_name = Int | Real | Mul | Add | Sub | Cos | Fact;
-datatype attr_value = IntAttr of int | RealAttr of real | NullAttr;
+datatype attr_value = IntAttr of int
+                    | RealAttr of real
+                    | NullAttr;
 datatype token = Token of token_name * attr_value;
 
 (* Parser data types. *)
@@ -55,6 +57,7 @@ fun inputLine () =
 (* Lex a stream of characters to a stream of tokens. Removal of white-space
  * and basic float parsing is performed here. *)
 exception invalid_char;
+exception missing_terminator;
 fun lex          Nil          = Nil
   | lex (cons as Cons(c, cf)) =
   let
@@ -63,18 +66,21 @@ fun lex          Nil          = Nil
     fun toInt k = Char.ord k - Char.ord #"0";
 
     (* Recursively lex the fractional part of a real. *)
-    fun lexFract r p          Nil          = Cons(Token(Real, RealAttr(r)), fn () => Nil)
-      | lexFract r p (kons as Cons(k, kf)) =
+    fun lexFract _ _ _              Nil          = raise missing_terminator
+      | lexFract r p first (kons as Cons(k, kf)) =
         if Char.isDigit k then lexFract (r + p * real (toInt k))
                                         (p * 0.1)
-                                        (kf ())
-                          else Cons(Token(Real, RealAttr(r)), fn () => lex kons);
+                                        false
+                                        (kf ()) else
+        (* Make sure we scan at least one digit after the dot. *)
+        if first then raise invalid_char
+                 else Cons(Token(Real, RealAttr(r)), fn () => lex kons);
 
     (* Recursively lex the integer part of a number, be it int or real. *)
-    fun lexNum n          Nil          = Cons(Token(Int, IntAttr(n)), fn () => Nil)
+    fun lexNum _          Nil          = raise missing_terminator
       | lexNum n (kons as Cons(k, kf)) =
         if Char.isDigit k then lexNum (10 * n + (toInt k)) (kf ()) else
-        if #"." = k       then lexFract (real n) 0.1 (kf ())
+        if #"." = k       then lexFract (real n) 0.1 true (kf ())
         else Cons(Token(Int, IntAttr(n)), fn () => lex kons);
 
     (* Recusively lex an operator.
@@ -86,7 +92,7 @@ fun lex          Nil          = Nil
      *       Nil halfway through. This eager approach to yielding
      *       operators/keywords is possible because the language has
      *       no identifiers or keywords which have others as prefixes. *)
-    fun lexOp ks  Nil          = raise invalid_char
+    fun lexOp _   Nil          = raise missing_terminator
       | lexOp ks (Cons(k, kf)) =
       let
         val next_ks = ks ^ (Char.toString k);
@@ -102,8 +108,9 @@ fun lex          Nil          = Nil
   in
     if Char.contains "\n\r" c then Nil else
     if Char.isSpace c then lex (cf ()) else
-    if Char.isDigit c then lexNum 0 cons
-                      else lexOp "" cons
+    if Char.isDigit c then lexNum 0 cons else
+    if #"." = c then lexFract 0.0 0.1 true (cf ())
+                else lexOp "" cons
   end;
 
 (* Parse a token stream into a parse tree using the LR(0) technique.
@@ -126,7 +133,7 @@ fun parse          Nil          = Lf
                    prod "factor" [T(Sub), NT("number")],
                    prod "factor" [T(Cos), NT("number")],
                    prod "number" [T(Int)],
-                   prod "number" [T(Real)]]; 
+                   prod "number" [T(Real)]];
   in
     Lf (* TODO: implement. *)
   end;
