@@ -118,8 +118,7 @@ fun lex          Nil          = Nil
  * 
  * Note: by convention, the headmost element of a non-terminal's parse
  *       tree node's child list is it's leftmost constituent symbol. *)
-exception bad_action;
-exception bad_input;
+exception invalid_syntax;
 exception internal_error;
 val parse =
   let
@@ -275,12 +274,8 @@ val parse =
         (goto (List.hd pre_goto) name)::pre_goto
       end;
 
-    (* Output a post-order traversal of the parse tree using the lr algorithm.
-     * 
-     * Note: bad_action is only raised for malformed action table, not invalid
-     *       input, and is intended for debugging purposes. *)
-    fun lr _ _ [] _   = raise bad_action
-      | lr _ _ _  Nil = raise bad_input
+    fun lr _ _ [] _   = raise internal_error
+      | lr _ _ _  Nil = raise invalid_syntax
       | lr  forest
             tokens
            (states as s::ss)
@@ -300,7 +295,7 @@ val parse =
                                           cons
                                     end
                 |  Accept        => List.hd forest
-                |  Error         => raise bad_input
+                |  Error         => raise invalid_syntax
       end;
   in
     lr [] [] [0]
