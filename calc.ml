@@ -3,7 +3,7 @@
  * Sam Hubbard - seh208@cam.ac.uk *)
 
 (* Elementary data type declarations. *)
-datatype 'a tree = Lf | Br of 'a * 'a tree list;
+datatype 'a tree = Br of 'a * 'a tree list;
 datatype 'a stream = Nil | Cons of 'a * (unit -> 'a stream);
 exception nil_head;
 exception nil_tail;
@@ -20,7 +20,7 @@ fun take n s =
   in List.rev (aux [] n s) end;
 
 (* Lexer data types. *)
-datatype token_name = Int | Real | Mul | Add | Sub | Cos | Fact;
+datatype token_name = Int | Real | Mul | Add | Sub | Cos | Fact | End;
 datatype attr_value = IntAttr of int
                     | RealAttr of real
                     | NullAttr;
@@ -31,12 +31,13 @@ type nonterminal_name = string;
 datatype symbol = NT of nonterminal_name
                 | T of token_name;
 datatype production = Production of nonterminal_name * symbol list;
-datatype item = Item of production * int;
-datatype state = State of item list;
+type state = int;
 datatype action = Shift of state
                 | Reduce of production
                 | Accept
                 | Error;
+datatype parse_tree_label = Internal of nonterminal_name
+                          | Leaf of token;
 
 (* Decompose a line of input into a stream for ux in interactive mode. *)
 fun inputLine () =
@@ -106,38 +107,205 @@ fun lex          Nil          = Nil
                                          else raise invalid_char
       end;
   in
-    if Char.contains "\n\r" c then Nil else
+    if Char.contains "\n\r" c then Cons(Token(End, NullAttr), fn () => Nil) else
     if Char.isSpace c then lex (cf ()) else
     if Char.isDigit c then lexNum 0 cons else
     if #"." = c then lexFract 0.0 0.1 true (cf ())
                 else lexOp "" cons
   end;
 
-(* Parse a token stream into a parse tree using the LR(0) technique.
+(* Parse a token stream into a parse tree using an SLR(1) table.
  * 
  * Note: by convention, the headmost element of a non-terminal's parse
  *       tree node's child list is it's leftmost constituent symbol. *)
-fun parse          Nil          = Lf
-  | parse (cons as Cons(t, tf)) =
+exception bad_action;
+exception bad_input;
+exception internal_error;
+val parse =
   let
-    fun prod l rs = Production(l, rs);
-    val grammar = [prod "root" [NT("expr")],
-                   prod "expr" [NT("term")],
-                   prod "expr" [NT("expr"), T(Add), NT("term")],
-                   prod "expr" [NT("expr"), T(Sub), NT("term")],
-                   prod "term" [NT("factor")],
-                   prod "term" [NT("term"), T(Mul), NT("factor")],
-                   prod "factor" [NT("number")],
-                   prod "factor" [NT("number"), T(Fact)],
-                   prod "factor" [T(Add), NT("number")],
-                   prod "factor" [T(Sub), NT("number")],
-                   prod "factor" [T(Cos), NT("number")],
-                   prod "number" [T(Int)],
-                   prod "number" [T(Real)]];
+    fun s i = Shift(i);
+    fun r l rs = Reduce(Production(l, rs));
+    fun action 0  Sub  = s 7
+      | action 0  Cos  = s 9
+      | action 0  Int  = s 10
+      | action 0  Real = s 11
+      | action 1  Add  = s 12
+      | action 1  Sub  = s 13
+      | action 1  End  = Accept
+      | action 2  Add  = r "expr" [NT("term")]
+      | action 2  Sub  =     action 2 Add
+      | action 2  End  =     action 2 Add
+      | action 3  Add  = r "term" [NT("factor")]
+      | action 3  Sub  =     action 3 Add
+      | action 3  Mul  = s 14
+      | action 3  End  =     action 3 Add
+      | action 4  Add  = r "factor" [NT("factorial")]
+      | action 4  Sub  =     action 4 Add
+      | action 4  Mul  =     action 4 Add
+      | action 4  Fact = s 15
+      | action 4  End  =     action 4 Add
+      | action 5  Add  = r "factorial" [NT("int")]
+      | action 5  Sub  =     action 5 Add
+      | action 5  Mul  =     action 5 Add
+      | action 5  Fact =     action 5 Add
+      | action 5  End  =     action 5 Add
+      | action 6  Add  = r "factor" [NT("real")]
+      | action 6  Sub  =     action 6 Add
+      | action 6  Mul  =     action 6 Add
+      | action 6  End  =     action 6 Add
+      | action 7  Int  = s 16
+      | action 7  Real = s 17
+    (* No state 8 because I made a mistake drawing up the table. *)
+      | action 9  Int  = s 10
+      | action 9  Real = s 11
+      | action 10 Add  = r "int" [T(Int)]
+      | action 10 Sub  =     action 10 Add
+      | action 10 Mul  =     action 10 Add
+      | action 10 Fact =     action 10 Add
+      | action 10 End  =     action 10 Add
+      | action 11 Add  = r "real" [T(Real)]
+      | action 11 Sub  =     action 11 Add
+      | action 11 Mul  =     action 11 Add
+      | action 11 End  =     action 11 Add
+      | action 12 Sub  = s 7
+      | action 12 Cos  = s 9
+      | action 12 Int  = s 10
+      | action 12 Real = s 11
+      | action 13 Sub  = s 7
+      | action 13 Cos  = s 9
+      | action 13 Int  = s 10
+      | action 13 Real = s 11
+      | action 14 Sub  = s 7
+      | action 14 Cos  = s 9
+      | action 14 Int  = s 10
+      | action 14 Real = s 11
+      | action 15 Add  = r "factorial" [NT("factorial"), T(Fact)]
+      | action 15 Sub  =     action 15 Add
+      | action 15 Mul  =     action 15 Add
+      | action 15 Fact =     action 15 Add
+      | action 15 End  =     action 15 Add
+      | action 16 Add  = r "int" [T(Sub), T(Int)]
+      | action 16 Sub  =     action 16 Add
+      | action 16 Mul  =     action 16 Add
+      | action 16 Fact =     action 16 Add
+      | action 16 End  =     action 16 Add
+      | action 17 Add  = r "real" [T(Real), T(Real)]
+      | action 17 Sub  =     action 17 Add
+      | action 17 Mul  =     action 17 Add
+      | action 17 Fact =     action 17 Add
+      | action 17 End  =     action 17 Add
+      | action 18 Add  = r "factor" [T(Cos), NT("factorial")]
+      | action 18 Sub  =     action 18 Add
+      | action 18 Mul  =     action 18 Add
+      | action 18 Fact = s 15
+      | action 18 End  =     action 18 Add
+      | action 19 Add  = r "factor" [T(Cos), NT("real")]
+      | action 19 Sub  =     action 19 Add
+      | action 19 Mul  =     action 19 Add
+      | action 19 End  =     action 19 Add
+      | action 20 Add  = r "expr" [NT("expr"), T(Add), NT("term")]
+      | action 20 Sub  =     action 20 Add
+      | action 20 End  =     action 20 Add
+      | action 21 Add  = r "expr" [NT("expr"), T(Sub), NT("term")]
+      | action 21 Sub  =     action 21 Add
+      | action 21 End  =     action 21 Add
+      | action 22 Add  = r "term" [NT("factor"), T(Mul), NT("term")]
+      | action 22 Sub  =     action 22 Add
+      | action 22 End  =     action 22 Add
+      | action _  _    = Error;
+
+    fun goto 0  "expr"      = 1
+      | goto 0  "term"      = 2
+      | goto 0  "factor"    = 3
+      | goto 0  "factorial" = 4
+      | goto 0  "int"       = 5
+      | goto 0  "real"      = 6
+      | goto 9  "factorial" = 18
+      | goto 9  "int"       = 5
+      | goto 9  "real"      = 19
+      | goto 12 "term"      = 20
+      | goto 12 "factor"    = 3
+      | goto 12 "factorial" = 4
+      | goto 12 "int"       = 5
+      | goto 12 "real"      = 6
+      | goto 13 "term"      = 21
+      | goto 13 "factor"    = 3
+      | goto 13 "factorial" = 4
+      | goto 13 "int"       = 5
+      | goto 13 "real"      = 6
+      | goto 14 "term"      = 22
+      | goto 14 "factor"    = 3
+      | goto 14 "factorial" = 4
+      | goto 14 "int"       = 5
+      | goto 14 "real"      = 6
+      | goto _  _           = ~1;
+
+    fun grow (Production(name, symbols)) forest tokens =
+      let
+        (* Gather together the children of the node according to the types of
+         * symbol found in the right-hand-side of the production. *)
+        fun gather  []     _  _  children nf nt = (children, nf, nt)
+          | gather (s::ss) fs ts children nf nt =
+              case s of T(_)  => gather ss
+                                     fs
+                                     (List.tl ts)
+                                     ((Br(Leaf(List.hd ts), []))::children)
+                                     nf
+                                     (nt + 1)
+                      | NT(_) => gather ss
+                                     (List.tl fs)
+                                     ts
+                                     ((List.hd fs)::children)
+                                     (nf + 1)
+                                     nt;
+
+        val tuple = gather (List.rev symbols) forest tokens [] 0 0;
+        val children = #1 tuple;
+        val nf = #2 tuple;
+        val nt = #3 tuple;
+      in
+        ((Br(Internal(name), children))::(List.drop (forest, nf)),
+         List.drop (tokens, nt))
+      end;
+
+    fun reduce (Production(name, symbols)) states =
+      let
+        val pre_goto = List.drop (states, List.length symbols);
+      in
+        (goto (List.hd pre_goto) name)::pre_goto
+      end;
+
+    (* Output a post-order traversal of the parse tree using the lr algorithm.
+     * 
+     * Note: bad_action is only raised for malformed action table, not invalid
+     *       input, and is intended for debugging purposes. *)
+    fun lr _ _ [] _   = raise bad_action
+      | lr _ _ _  Nil = raise bad_input
+      | lr  forest
+            tokens
+           (states as s::ss)
+           (cons as Cons(t as Token(t_name, _), tf)) =
+      let
+        val a = action s t_name;
+      in
+        case a of (Shift(next))  => lr forest (t::tokens) (next::states) (tf ())
+                | (Reduce(prod)) => let
+                                      val tuple = grow prod forest tokens;
+                                      val next_forest = #1 tuple;
+                                      val next_tokens = #2 tuple;
+                                    in
+                                      lr next_forest
+                                         next_tokens
+                                         (reduce prod states)
+                                          cons
+                                    end
+                |  Accept        => List.hd forest
+                |  Error         => raise bad_input
+      end;
   in
-    Lf (* TODO: implement. *)
+    lr [] [] [0]
   end;
 
 (* Convenience functions. *)
-val interactive = fn () => lex (inputLine ());
+fun interactive () = parse (lex (inputLine ()));
 
