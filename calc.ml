@@ -3,7 +3,6 @@
  * Sam Hubbard - seh208@cam.ac.uk *)
 
 (* Elementary data type declarations. *)
-datatype 'a tree = Br of 'a * 'a tree list;
 datatype 'a stream = Nil | Cons of 'a * (unit -> 'a stream);
 exception nil_head;
 exception nil_tail;
@@ -29,8 +28,8 @@ datatype action = Shift of state
                 | Reduce of production
                 | Accept
                 | Error;
-datatype parse_tree_label = Internal of nonterminal_name
-                          | Leaf of token;
+datatype parse_tree = Br of nonterminal_name * parse_tree list
+                    | Lf of token;
 
 (* Decompose a line of input into a stream for ux in interactive mode. *)
 fun inputLine () =
@@ -233,7 +232,7 @@ val parse =
       | goto _  _           = ~1;
 
     (* Push a new leaf (token) node to the forest. *)
-    fun push t forest = (Br(Leaf(t), []))::forest;
+    fun push t forest = (Lf(t))::forest;
 
     (* Return new forest after a reduction. This involves creating a new node
      * representing the reduced production, popping elements from the old
@@ -250,7 +249,7 @@ val parse =
             aux []
           end;
       in
-        (Br(Internal(name), popN n forest))::(List.drop (forest, n))
+        (Br(name, popN n forest))::(List.drop (forest, n))
       end;
 
     (* Return the new state stack after reducing by a production. *)
