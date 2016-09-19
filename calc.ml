@@ -11,13 +11,6 @@ fun hd  Nil          = raise nil_head
   | hd (Cons(x, xf)) = x;
 fun tl  Nil          = raise nil_tail
   | tl (Cons(x, xf)) = xf ();
-fun take n s =
-  let
-    fun aux xs _  Nil          = xs
-      | aux xs 0  _            = xs
-      | aux xs 1 (Cons(x, xf)) = (x::xs)
-      | aux xs k (Cons(x, xf)) = aux (x::xs) (k - 1) (xf ());
-  in List.rev (aux [] n s) end;
 
 (* Lexer data types. *)
 datatype token_name = Int | Real | Mul | Add | Sub | Cos | Fact | End;
@@ -239,66 +232,48 @@ val parse =
       | goto 14 "real"      = 6
       | goto _  _           = ~1;
 
-    fun grow (Production(name, symbols)) forest tokens =
-      let
-        (* Gather together the children of the node according to the types of
-         * symbol found in the right-hand-side of the production. *)
-        fun gather  []     _  _  children nf nt = (children, nf, nt)
-          | gather (s::ss) fs ts children nf nt =
-              case s of T(_)  => gather ss
-                                     fs
-                                     (List.tl ts)
-                                     ((Br(Leaf(List.hd ts), []))::children)
-                                     nf
-                                     (nt + 1)
-                      | NT(_) => gather ss
-                                     (List.tl fs)
-                                     ts
-                                     ((List.hd fs)::children)
-                                     (nf + 1)
-                                     nt;
+    (* Push a new leaf (token) node to the forest. *)
+    fun push t forest = (Br(Leaf(t), []))::forest;
 
-        val tuple = gather (List.rev symbols) forest tokens [] 0 0;
-        val children = #1 tuple;
-        val nf = #2 tuple;
-        val nt = #3 tuple;
+    (* Return new forest after a reduction. This involves creating a new node
+     * representing the reduced production, popping elements from the old
+     * forest to form its children, and adding it to the head of the new forest. *)
+    fun grow (Production(name, symbols)) forest =
+      let
+        val n = List.length symbols; 
+        val popN =
+          let
+            fun aux ys 0  _      = ys
+              | aux ys n  []     = ys
+              | aux ys n (x::xs) = aux (x::ys) (n - 1) xs;
+          in
+            aux []
+          end;
       in
-        ((Br(Internal(name), children))::(List.drop (forest, nf)),
-         List.drop (tokens, nt))
+        (Br(Internal(name), popN n forest))::(List.drop (forest, n))
       end;
 
+    (* Return the new state stack after reducing by a production. *)
     fun reduce (Production(name, symbols)) states =
       let
-        val pre_goto = List.drop (states, List.length symbols);
+        val base = List.drop (states, List.length symbols);
       in
-        (goto (List.hd pre_goto) name)::pre_goto
+        (goto (List.hd base) name)::base
       end;
 
-    fun lr _ _ [] _   = raise internal_error
-      | lr _ _ _  Nil = raise invalid_syntax
-      | lr  forest
-            tokens
-           (states as s::ss)
-           (cons as Cons(t as Token(t_name, _), tf)) =
+    fun lr _ [] _   = raise internal_error
+      | lr _ _  Nil = raise invalid_syntax
+      | lr forest (states as s::ss) (cons as Cons(t as Token(t_name, _), tf)) =
       let
         val a = action s t_name;
       in
-        case a of (Shift(next))  => lr forest (t::tokens) (next::states) (tf ())
-                | (Reduce(prod)) => let
-                                      val tuple = grow prod forest tokens;
-                                      val next_forest = #1 tuple;
-                                      val next_tokens = #2 tuple;
-                                    in
-                                      lr next_forest
-                                         next_tokens
-                                         (reduce prod states)
-                                          cons
-                                    end
+        case a of (Shift(next))  => lr (push t forest) (next::states) (tf ())
+                | (Reduce(prod)) => lr (grow prod forest) (reduce prod states) cons
                 |  Accept        => List.hd forest
                 |  Error         => raise invalid_syntax
       end;
   in
-    lr [] [] [0]
+    lr [] [0]
   end;
 
 (* Convenience functions. *)
