@@ -132,7 +132,7 @@ val parse =
           | ordNT "factorial" = 3
           | ordNT "int"       = 4
           | ordNT "real"      = 5
-          | ordNT _           = raise internal_error;
+          | ordNT _           = raise invalid_action_table;
 
         fun ordT Add  = 0
           | ordT Sub  = 1
@@ -141,7 +141,7 @@ val parse =
           | ordT Fact = 4
           | ordT Int  = 5
           | ordT Real = 6
-          | ordT End  = 7;  (* End should always be ordered last... *)
+          | ordT End  = 7;
 
         (* Load a file formatted as a table to a list of row lists. *)
         fun load path =
