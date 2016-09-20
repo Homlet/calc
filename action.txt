@@ -1,25 +1,24 @@
-23 states
+22 states
 8 tokens        +              -              *            cos              !            int           real              $
-0:               ,            s7,              ,            s9,              ,           s10,           s11
-1:            s12,           s13,              ,              ,              ,              ,              ,             a
+0:               ,            s7,              ,            s8,              ,            s9,           s10
+1:            s11,           s12,              ,              ,              ,              ,              ,             a
 2:       r"expr"1,      r"expr"1,              ,              ,              ,              ,              ,      r"expr"1
-3:       r"term"1,      r"term"1,           s14,              ,              ,              ,              ,      r"term"1
-4:     r"factor"1,    r"factor"1,    r"factor"1,              ,           s15,              ,              ,    r"factor"1
-5:  r"factorial"1, r"factorial"1, r"factorial"1,              , r"factorial"1,              ,              , r"factorial"1
+3:       r"term"1,      r"term"1,           s13,              ,              ,              ,              ,      r"term"1
+4:     r"factor"1,    r"factor"1,    r"factor"1,              ,           s14,              ,              ,    r"factor"1
+5:     r"factor"1,    r"factor"1,    r"factor"1,              ,              ,              ,              ,    r"factor"1
 6:     r"factor"1,    r"factor"1,    r"factor"1,              ,              ,              ,              ,    r"factor"1
-7:               ,              ,              ,              ,              ,           s16,           s17
-8:,,,,,,,, No state 8 because I made a mistake in deriving the table.
-9:               ,            s7,              ,              ,              ,           s10,           s11
-10:       r"int"1,       r"int"1,       r"int"1,              ,       r"int"1,              ,              ,       r"int"1
-11:      r"real"1,      r"real"1,      r"real"1,              ,              ,              ,              ,      r"real"1
-12:              ,            s7,              ,            s9,              ,           s10,           s11
-13:              ,            s7,              ,            s9,              ,           s10,           s11
-14:              ,            s7,              ,            s9,              ,           s10,           s11
-15: r"factorial"2, r"factorial"2, r"factorial"2,              , r"factorial"2,              ,              , r"factorial"2
-16:       r"int"2,       r"int"2,       r"int"2,              ,              ,              ,              ,       r"int"2
-17:      r"real"2,      r"real"2,      r"real"2,              ,              ,              ,              ,      r"real"2
-18:    r"factor"2,    r"factor"2,    r"factor"2,              ,           s15,              ,              ,    r"factor"2
-19:    r"factor"2,    r"factor"2,    r"factor"2,              ,              ,              ,              ,    r"factor"2
+7:               ,              ,              ,              ,              ,           s15,           s16
+8:               ,            s7,              ,            s8,              ,            s9,           s10
+9:        r"int"1,       r"int"1,       r"int"1,              ,           s18,              ,              ,       r"int"1
+10:      r"real"1,      r"real"1,      r"real"1,              ,              ,              ,              ,      r"real"1
+11:              ,            s7,              ,            s8,              ,            s9,           s10
+12:              ,            s7,              ,            s8,              ,            s9,           s10
+13:              ,            s7,              ,            s8,              ,            s9,           s10
+14: r"factorial"2, r"factorial"2, r"factorial"2,              , r"factorial"2,              ,              , r"factorial"2
+15:       r"int"2,       r"int"2,       r"int"2,              ,              ,              ,              ,       r"int"2
+16:      r"real"2,      r"real"2,      r"real"2,              ,              ,              ,              ,      r"real"2
+17:    r"factor"2,    r"factor"2,    r"factor"2,              ,              ,              ,              ,    r"factor"2
+18: r"factorial"2, r"factorial"2, r"factorial"2,              , r"factorial"2,              ,              , r"factorial"2
+19:      r"expr"3,      r"expr"3,              ,              ,              ,              ,              ,      r"expr"3
 20:      r"expr"3,      r"expr"3,              ,              ,              ,              ,              ,      r"expr"3
-21:      r"expr"3,      r"expr"3,              ,              ,              ,              ,              ,      r"expr"3
-22:      r"term"3,      r"term"3,              ,              ,              ,              ,              ,      r"term"3
+21:      r"term"3,      r"term"3,              ,              ,              ,              ,              ,      r"term"3
